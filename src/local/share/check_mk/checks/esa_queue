@@ -1,0 +1,85 @@
+#!/usr/bin/python
+# -*- encoding: utf-8; py-indent-offset: 4 -*-
+esa_queue_default_params = {
+	"queueAvailabilityStatus_levels" = ( 2, 3 ),
+	"perCentQueueUtilization_levels" = ( 80, 90 ),
+	"workQueueMessages_levels"       = ( 9999, 1000000 ),
+}
+
+def inventory_esa_queue(info):
+	if len(info) >= 1:
+		return [ ("ESA Queue", "esa_queue_default_params")]
+		
+def check_esa_queue(item,params,info):
+	infotext = ""
+	perfdata = []
+	status   = -1
+	#print item
+	#print params
+	#print info
+
+
+	## checks ##
+	
+	queueAvailabilityStatus = int(info[1])
+	perCentQueueUtilization = int(info[0])
+	workQueueMessages       = int(info[2])
+	
+	qas_warn, qas_crit = params["queueAvailabilityStatus_levels"]
+	qu_warn, qu_crit   = params["perCentQueueUtilization_levels"]
+	wqm_warn, wqm_crit = params["workQueueMessages_levels"]
+	
+	if queueAvailabilityStatus >= qas_crit:
+		status = max( status, 2 )
+		infotext = "Status %s (!!)" % ( qas_crit ) #?
+	elif queueAvailabilityStatus >= qas_warn:
+		status = max( status, 1 )
+		infotext = "Status %s (!)" % ( qas_crit ) #? qas_crit?
+	else:
+		status = max( status, 0 )
+		infotext = "Status %s" % ( qas_crit )  #?
+
+	if perCentQueueUtilization >= qu_crit:
+		status = max( status, 2 )
+		infotext = "Status %s (!!)" % ( qu_crit )
+	elif perCentQueueUtilization >= qu_warn:
+		status = max( status, 1 )
+		infotext = "Status %s (!)" % ( qu_crit )
+	else:
+		status = max( status, 0 )
+		infotext = "Status %s" % ( qu_crit )
+
+	if workQueueMessages >= wqm_crit:
+		status = max( status, 2 )
+		infotext = "Status %s (!!)" % ( wqm_crit )
+	elif workQueueMessages >= wqm_warn:
+		status = max( status, 1 )
+		infotext = "Status %s (!)" % ( wqm_crit )
+	else:
+		status = max( status, 0 )
+		infotext = "Status %s" % ( wqm_crit )
+
+	perfdata.append( [("queueAvailabilityStatus", queueAvailabilityStatus, qas_warn, qas_crit)] )
+
+	perfdata.append( [("perCentQueueUtilization", perCentQueueUtilization, qu_warn, qu_crit, 0, 100)] )
+
+	perfdata.append( [("workQueueMessages", workQueueMessages, wqm_warn, wqm_crit)] )
+
+	## end checks ##
+
+	if infotext == "":
+		infotext = "not implemented"
+		status   = 3
+	
+	return (status, infotext, perfdata)
+
+check_info["esa_queue"] = {
+	"check_function"        : check_esa_queue,
+	"inventory_function"    : inventory_esa_queue,
+	"service_description"   : "Queue Utilization",
+	"has_perfdata"          : True,
+	"group"                 : "esa_utilization",
+	"snmp_info"		    : ( ".1.3.6.1.4.1.15497.1.1.1", [ "4.0", "5.0", "11.0" ]),
+	'snmp_scan_function':      \
+     lambda oid: oid(".1.3.6.1.2.1.1.2.0").startswith(".1.3.6.1.4.1.15497."),
+}
