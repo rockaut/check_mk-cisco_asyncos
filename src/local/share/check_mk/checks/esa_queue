@@ -1,14 +1,21 @@
 #!/usr/bin/python
 # -*- encoding: utf-8; py-indent-offset: 4 -*-
-esa_queue_default_params = {
-	"queueAvailabilityStatus_levels" = ( 2, 3 ),
-	"perCentQueueUtilization_levels" = ( 80, 90 ),
-	"workQueueMessages_levels"       = ( 9999, 1000000 ),
+
+esa_queue_default_params = {}
+factory_settings["esa_queue_default_params"] = {
+	"queueAvailabilityStatus_levels" : ( 2, 3 ),
+	"perCentQueueUtilization_levels" : ( 80, 90 ),
+	"workQueueMessages_levels"       : ( 9999, 1000000 ),
+}
+async_queueAvailStatus_desc = {
+	1 : "Space Available",
+	2 : "Space Shortage",
+	3 : "Full",
 }
 
 def inventory_esa_queue(info):
 	if len(info) >= 1:
-		return [ ("ESA Queue", "esa_queue_default_params")]
+		return [ ("ESA Queue", {})]
 		
 def check_esa_queue(item,params,info):
 	infotext = ""
@@ -16,48 +23,48 @@ def check_esa_queue(item,params,info):
 	status   = -1
 	#print item
 	#print params
-	#print info
-
+	#print info[0]
 
 	## checks ##
 	
-	queueAvailabilityStatus = int(info[1])
-	perCentQueueUtilization = int(info[0])
-	workQueueMessages       = int(info[2])
-	
+	queueAvailabilityStatus = int(info[0][1])
+	perCentQueueUtilization = int(info[0][0])
+	workQueueMessages       = int(info[0][2])
+	#print "sss"
 	qas_warn, qas_crit = params["queueAvailabilityStatus_levels"]
 	qu_warn, qu_crit   = params["perCentQueueUtilization_levels"]
 	wqm_warn, wqm_crit = params["workQueueMessages_levels"]
 	
-	if queueAvailabilityStatus >= qas_crit:
-		status = max( status, 2 )
-		infotext = "Status %s (!!)" % ( qas_crit ) #?
-	elif queueAvailabilityStatus >= qas_warn:
-		status = max( status, 1 )
-		infotext = "Status %s (!)" % ( qas_crit ) #? qas_crit?
-	else:
-		status = max( status, 0 )
-		infotext = "Status %s" % ( qas_crit )  #?
-
+	
 	if perCentQueueUtilization >= qu_crit:
 		status = max( status, 2 )
-		infotext = "Status %s (!!)" % ( qu_crit )
+		infotext += "Utilization %s%% (!!)" % ( perCentQueueUtilization )
 	elif perCentQueueUtilization >= qu_warn:
 		status = max( status, 1 )
-		infotext = "Status %s (!)" % ( qu_crit )
+		infotext += "Utilization %s%% (!)" % ( perCentQueueUtilization )
 	else:
 		status = max( status, 0 )
-		infotext = "Status %s" % ( qu_crit )
+		infotext += "Utilization %s%%" % ( perCentQueueUtilization )
+	
+	if queueAvailabilityStatus >= qas_crit:
+		status = max( status, 2 )
+		infotext += " - Status: %s (!!)" % ( async_queueAvailStatus_desc[queueAvailabilityStatus] )
+	elif queueAvailabilityStatus >= qas_warn:
+		status = max( status, 1 )
+		infotext += " - Status: %s (!)" % ( async_queueAvailStatus_desc[queueAvailabilityStatus] )
+	else:
+		status = max( status, 0 )
+		#infotext += " - Status: %s" % ( async_queueAvailStatus_desc[queueAvailabilityStatus] )
 
 	if workQueueMessages >= wqm_crit:
 		status = max( status, 2 )
-		infotext = "Status %s (!!)" % ( wqm_crit )
+		infotext += " - Messages %s (!!)" % ( workQueueMessages )
 	elif workQueueMessages >= wqm_warn:
 		status = max( status, 1 )
-		infotext = "Status %s (!)" % ( wqm_crit )
+		infotext += " - Messages %s (!)" % ( workQueueMessages )
 	else:
 		status = max( status, 0 )
-		infotext = "Status %s" % ( wqm_crit )
+		infotext += " - Messages %s" % ( workQueueMessages )
 
 	perfdata.append( [("queueAvailabilityStatus", queueAvailabilityStatus, qas_warn, qas_crit)] )
 
@@ -74,6 +81,7 @@ def check_esa_queue(item,params,info):
 	return (status, infotext, perfdata)
 
 check_info["esa_queue"] = {
+	'default_levels_variable':  "esa_queue_default_params",
 	"check_function"        : check_esa_queue,
 	"inventory_function"    : inventory_esa_queue,
 	"service_description"   : "Queue Utilization",
